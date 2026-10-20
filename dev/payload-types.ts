@@ -68,6 +68,7 @@ export interface Config {
   blocks: {};
   collections: {
     posts: Post;
+    notes: Note;
     media: Media;
     search: Search;
     'payload-kv': PayloadKv;
@@ -79,6 +80,7 @@ export interface Config {
   collectionsJoins: {};
   collectionsSelect: {
     posts: PostsSelect<false> | PostsSelect<true>;
+    notes: NotesSelect<false> | NotesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     search: SearchSelect<false> | SearchSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -90,10 +92,10 @@ export interface Config {
   db: {
     defaultIDType: number;
   };
-  fallbackLocale: null;
+  fallbackLocale: ('false' | 'none' | 'null') | false | null | ('ja' | 'en') | ('ja' | 'en')[];
   globals: {};
   globalsSelect: {};
-  locale: null;
+  locale: 'ja' | 'en';
   widgets: {
     collections: CollectionsWidget;
   };
@@ -128,6 +130,7 @@ export interface UserAuthOperations {
 export interface Post {
   id: number;
   title?: string | null;
+  slug?: string | null;
   content?: {
     root: {
       type: string;
@@ -143,9 +146,39 @@ export interface Post {
     };
     [k: string]: unknown;
   } | null;
+  sections?:
+    | {
+        heading?: string | null;
+        tags?: string[] | null;
+        id?: string | null;
+      }[]
+    | null;
+  layout?:
+    | {
+        body?: string | null;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'callout';
+      }[]
+    | null;
+  meta?: {
+    description?: string | null;
+  };
   updatedAt: string;
   createdAt: string;
   _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notes".
+ */
+export interface Note {
+  id: number;
+  title?: string | null;
+  locked?: string | null;
+  body?: string | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -174,11 +207,24 @@ export interface Media {
 export interface Search {
   id: number;
   title?: string | null;
+  /**
+   * Text of the indexed fields, normalized with NFKC and lower-cased. Used to find candidates for search & replace.
+   */
+  content?: string | null;
+  /**
+   * Text of the indexed fields, lower-cased. Used to find candidates for search & replace.
+   */
+  contentRaw?: string | null;
   priority?: number | null;
-  doc: {
-    relationTo: 'posts';
-    value: number | Post;
-  };
+  doc:
+    | {
+        relationTo: 'posts';
+        value: number | Post;
+      }
+    | {
+        relationTo: 'notes';
+        value: number | Note;
+      };
   updatedAt: string;
   createdAt: string;
 }
@@ -235,6 +281,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'posts';
         value: number | Post;
+      } | null)
+    | ({
+        relationTo: 'notes';
+        value: number | Note;
       } | null)
     | ({
         relationTo: 'media';
@@ -296,10 +346,45 @@ export interface PayloadMigration {
  */
 export interface PostsSelect<T extends boolean = true> {
   title?: T;
+  slug?: T;
   content?: T;
+  sections?:
+    | T
+    | {
+        heading?: T;
+        tags?: T;
+        id?: T;
+      };
+  layout?:
+    | T
+    | {
+        callout?:
+          | T
+          | {
+              body?: T;
+              id?: T;
+              blockName?: T;
+            };
+      };
+  meta?:
+    | T
+    | {
+        description?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notes_select".
+ */
+export interface NotesSelect<T extends boolean = true> {
+  title?: T;
+  locked?: T;
+  body?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -324,6 +409,8 @@ export interface MediaSelect<T extends boolean = true> {
  */
 export interface SearchSelect<T extends boolean = true> {
   title?: T;
+  content?: T;
+  contentRaw?: T;
   priority?: T;
   doc?: T;
   updatedAt?: T;
@@ -408,9 +495,4 @@ export interface CollectionsWidget {
  */
 export interface Auth {
   [k: string]: unknown;
-}
-
-
-declare module 'payload' {
-  export interface GeneratedTypes extends Config {}
 }

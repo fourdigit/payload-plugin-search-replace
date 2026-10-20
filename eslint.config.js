@@ -19,6 +19,7 @@ export const defaultESLintIgnores = [
   '**/.yarn/',
   '**/build/',
   '**/node_modules/',
+  '**/.next/',
   '**/temp/',
 ]
 

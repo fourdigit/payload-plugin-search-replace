@@ -25,6 +25,9 @@
       "@fourdigit/payload-plugin-search-replace/client": [
         "../src/exports/client.ts"
       ],
+      "@fourdigit/payload-plugin-search-replace/rsc": [
+        "../src/exports/rsc.ts"
+      ],
       "@fourdigit/payload-plugin-search-replace/types": [
         "../src/exports/types.ts"
       ]

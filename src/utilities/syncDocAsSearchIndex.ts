@@ -1,5 +1,7 @@
 import type { DocToSync, SyncDocArgs } from '../types.js'
 
+import { buildSearchContent } from '../core/searchContent.js'
+
 export const syncDocAsSearchIndex = async ({
   collection,
   doc,
@@ -16,8 +18,13 @@ export const syncDocAsSearchIndex = async ({
 
   const searchSlug = searchOverrides?.slug || 'search'
 
-  // Determine sync locale
-  const syncLocale = locale || req.locale || undefined
+  // Determine sync locale. `all` (saving every locale at once) syncs the default locale here;
+  // the afterChange hook syncs the others.
+  const localization = payload.config.localization
+  let syncLocale = locale || req.locale || undefined
+  if (syncLocale === 'all' && localization) {
+    syncLocale = localization.defaultLocale
+  }
 
   if (typeof pluginConfig.skipSync === 'function') {
     try {
@@ -39,12 +46,17 @@ export const syncDocAsSearchIndex = async ({
     }
   }
 
+  const collectionConfig = payload.collections[collection]?.config
+  const useAsTitle = collectionConfig?.admin?.useAsTitle
+
   let dataToSave: DocToSync = {
     doc: {
       relationTo: collection,
       value: id,
     },
-    title,
+    title:
+      title ??
+      (useAsTitle && useAsTitle !== 'id' && doc?.[useAsTitle] != null ? String(doc[useAsTitle]) : undefined),
   }
   const docKeyPrefix = `${collection}:${id}`
   const docKey = req.payload.config.localization ? `${docKeyPrefix}:${syncLocale}` : docKeyPrefix
@@ -63,21 +75,42 @@ export const syncDocAsSearchIndex = async ({
 
   req.context.syncedDocsSet = syncedDocsSet
 
-  if (typeof beforeSync === 'function') {
-    let docToSyncWith = doc
-    if (payload.config?.localization) {
-      // Check if document is trashed (has deletedAt field)
-      const isTrashDocument = doc && 'deletedAt' in doc && doc.deletedAt
+  // Read the document in the sync locale and, when drafts are enabled, its latest version:
+  // the index holds the text that search & replace works on.
+  const draftsEnabled = Boolean(collectionConfig?.versions?.drafts)
+  let docToSyncWith = doc
+  if (payload.config?.localization || draftsEnabled) {
+    // Check if document is trashed (has deletedAt field)
+    const isTrashDocument = doc && 'deletedAt' in doc && doc.deletedAt
 
+    try {
       docToSyncWith = await payload.findByID({
         id,
         collection,
+        depth: 0,
+        draft: draftsEnabled && syncDrafts,
         locale: syncLocale,
         req,
         // Include trashed documents when the document being synced is trashed
         trash: isTrashDocument,
       })
+    } catch (err) {
+      payload.logger.error({ err, msg: `Search plugin: could not re-read ${collection} ${id}.` })
     }
+  }
+
+  // Title of the re-read document, so each locale's index gets its own title.
+  const syncedTitle =
+    docToSyncWith?.title ??
+    (useAsTitle && useAsTitle !== 'id' && docToSyncWith?.[useAsTitle] != null
+      ? String(docToSyncWith[useAsTitle])
+      : undefined)
+  Object.assign(dataToSave, {
+    title: syncedTitle,
+    ...buildSearchContent({ collection, doc: docToSyncWith, filter: pluginConfig.fields, payload }),
+  })
+
+  if (typeof beforeSync === 'function') {
     dataToSave = await beforeSync({
       collectionSlug: collection,
       originalDoc: docToSyncWith,

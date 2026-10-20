@@ -22,7 +22,10 @@
   "homepage": "https://github.com/fourdigit/payload-plugin-search-replace#readme",
   "license": "MIT",
   "author": "FOURDIGIT Inc.",
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css",
+    "*.scss"
+  ],
   "type": "module",
   "exports": {
     ".": {
@@ -39,6 +42,11 @@
       "import": "./src/exports/types.ts",
       "types": "./src/exports/types.ts",
       "default": "./src/exports/types.ts"
+    },
+    "./rsc": {
+      "import": "./src/exports/rsc.ts",
+      "types": "./src/exports/rsc.ts",
+      "default": "./src/exports/rsc.ts"
     }
   },
   "main": "./src/index.ts",
@@ -65,8 +73,7 @@
     "test:int": "vitest"
   },
   "dependencies": {
-    "@payloadcms/next": "^3.86.0",
-    "@payloadcms/ui": "^3.86.0"
+    "re2js": "2.8.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -76,6 +83,7 @@
     "@payloadcms/eslint-config": "3.28.0",
     "@payloadcms/next": "3.91.0",
     "@payloadcms/richtext-lexical": "3.91.0",
+    "@payloadcms/translations": "3.91.0",
     "@payloadcms/ui": "3.91.0",
     "@playwright/test": "1.58.2",
     "@swc-node/register": "1.10.9",
@@ -103,6 +111,10 @@
     "vitest": "4.0.18"
   },
   "peerDependencies": {
+    "@payloadcms/next": "^3.86.0",
+    "@payloadcms/translations": "^3.86.0",
+    "@payloadcms/ui": "^3.86.0",
+    "next": ">=15.2.9",
     "payload": "^3.86.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1"
@@ -127,6 +139,11 @@
         "import": "./dist/exports/types.js",
         "types": "./dist/exports/types.d.ts",
         "default": "./dist/exports/types.js"
+      },
+      "./rsc": {
+        "import": "./dist/exports/rsc.js",
+        "types": "./dist/exports/rsc.d.ts",
+        "default": "./dist/exports/rsc.js"
       }
     },
     "main": "./dist/index.js",

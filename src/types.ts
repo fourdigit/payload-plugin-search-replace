@@ -53,9 +53,11 @@ export type SearchPluginConfig<ConfigTypes = unknown> = {
   /**
    * Controls whether drafts are deleted from the search index
    *
-   * @default true
+   * @default false (upstream: true) — replace works on drafts, so the index keeps them
    */
   deleteDrafts?: boolean
+  /** Which fields are indexed and replaceable. */
+  fields?: FieldFilter
   localize?: boolean
   /**
    * We use batching when re-indexing large collections. You can control the amount of items per batch, lower numbers should help with memory.
@@ -63,6 +65,8 @@ export type SearchPluginConfig<ConfigTypes = unknown> = {
    * @default 50
    */
   reindexBatchSize?: number
+  /** Options for the search & replace endpoints and admin view. */
+  replace?: ReplaceConfig
   searchOverrides?: { fields?: FieldsOverride } & Partial<Omit<CollectionConfig, 'fields'>>
   /**
    * Determine whether to skip syncing a document for a specific locale.
@@ -88,9 +92,52 @@ export type SearchPluginConfig<ConfigTypes = unknown> = {
   /**
    * Controls whether drafts are synced to the search index
    *
-   * @default false
+   * @default true (upstream: false) — replace works on drafts, so the index has to include them
    */
   syncDrafts?: boolean
+}
+
+/**
+ * Chooses which text, textarea and richText fields are indexed and can be replaced.
+ * `schemaPath` is the dot path of field names without array indices, e.g. `layout.content`.
+ */
+export type FieldFilter = {
+  /**
+   * Glob patterns on `schemaPath` to leave out. `*` matches one segment, `**` any number.
+   *
+   * @default ['**.slug', '**.url']
+   */
+  exclude?: string[]
+  /** Decides per field. Returning `undefined` falls back to `exclude`. */
+  include?: (args: { collection: string; field: Field; schemaPath: string }) => boolean | undefined
+}
+
+export type ReplaceAccessArgs = { req: PayloadRequest }
+
+export type ReplaceConfig = {
+  /**
+   * Who can open the search & replace view and call its endpoints.
+   * Document-level access (tenants, departments…) still applies to every read and write.
+   *
+   * @default signed-in users of `admin.user` who pass its `access.admin`
+   */
+  access?: (args: ReplaceAccessArgs) => boolean | Promise<boolean>
+  /**
+   * Who can search with regular expressions.
+   *
+   * @default () => false
+   */
+  canUseRegex?: (args: ReplaceAccessArgs) => boolean | Promise<boolean>
+  /**
+   * Hide the admin view and its nav link. The endpoints stay available.
+   *
+   * @default false
+   */
+  disableAdminView?: boolean
+  /**
+   * Largest number of documents one apply request may change. Unset means no limit.
+   */
+  maxApplyDocs?: number
 }
 
 export type CollectionLabels = {
@@ -106,6 +153,12 @@ export type SearchPluginConfigWithLocales<ConfigTypes = unknown> = {
 } & SearchPluginConfig<ConfigTypes>
 
 export type SanitizedSearchPluginConfig<ConfigTypes = unknown> = {
+  /**
+   * The index text fields are localized whenever the host has localization, even with
+   * `localize: false` (which then only affects `title`): one shared value would hold the text of
+   * whichever locale was synced last.
+   */
+  localizeContent: boolean
   reindexBatchSize: number
   syncDrafts: boolean
 } & SearchPluginConfigWithLocales<ConfigTypes>

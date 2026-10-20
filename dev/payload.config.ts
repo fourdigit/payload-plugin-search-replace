@@ -1,13 +1,16 @@
-import { searchPlugin } from '@fourdigit/payload-plugin-search-replace'
+import { searchReplacePlugin } from '@fourdigit/payload-plugin-search-replace'
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
+import { en } from '@payloadcms/translations/languages/en'
+import { ja } from '@payloadcms/translations/languages/ja'
 import path from 'path'
 import { buildConfig, type DatabaseAdapterObj } from 'payload'
 import sharp from 'sharp'
 import { fileURLToPath } from 'url'
 
+import { devUser } from './helpers/credentials.js'
 import { testEmailAdapter } from './helpers/testEmailAdapter.js'
 import { seed } from './seed.js'
 
@@ -56,15 +59,93 @@ export default buildConfig({
         {
           name: 'title',
           type: 'text',
+          localized: true,
+        },
+        {
+          name: 'slug',
+          type: 'text',
         },
         {
           name: 'content',
           type: 'richText',
+          localized: true,
+        },
+        {
+          name: 'sections',
+          type: 'array',
+          fields: [
+            {
+              name: 'heading',
+              type: 'text',
+            },
+            {
+              name: 'tags',
+              type: 'text',
+              hasMany: true,
+            },
+          ],
+        },
+        {
+          name: 'layout',
+          type: 'blocks',
+          blocks: [
+            {
+              slug: 'callout',
+              fields: [
+                {
+                  name: 'body',
+                  type: 'textarea',
+                },
+              ],
+            },
+          ],
+        },
+        {
+          type: 'tabs',
+          tabs: [
+            {
+              name: 'meta',
+              fields: [
+                {
+                  name: 'description',
+                  type: 'textarea',
+                },
+              ],
+            },
+          ],
         },
       ],
       versions: {
         drafts: true,
       },
+    },
+    {
+      // No drafts, readable only by the dev user, and one field nobody may update.
+      slug: 'notes',
+      access: {
+        read: ({ req }) => req.user?.email === devUser.email,
+        update: ({ req }) => req.user?.email === devUser.email,
+      },
+      admin: {
+        useAsTitle: 'title',
+      },
+      fields: [
+        {
+          name: 'title',
+          type: 'text',
+        },
+        {
+          name: 'locked',
+          type: 'text',
+          access: {
+            update: () => false,
+          },
+        },
+        {
+          name: 'body',
+          type: 'textarea',
+        },
+      ],
     },
     {
       slug: 'media',
@@ -77,17 +158,31 @@ export default buildConfig({
   db: getDatabaseAdapter(),
   editor: lexicalEditor(),
   email: testEmailAdapter,
+  i18n: {
+    supportedLanguages: { en, ja },
+  },
+  localization: {
+    defaultLocale: 'ja',
+    fallback: true,
+    locales: ['ja', 'en'],
+  },
   onInit: async (payload) => {
     await seed(payload)
   },
   plugins: [
-    searchPlugin({
-      collections: ['posts'],
+    searchReplacePlugin({
+      collections: ['posts', 'notes'],
+      replace: {
+        canUseRegex: ({ req }) => req.user?.email === devUser.email,
+        maxApplyDocs: 50,
+      },
     }),
   ],
   secret: process.env.PAYLOAD_SECRET || 'test-secret_key',
   sharp,
   typescript: {
+    // Keep the plugin source checked against Payload's generic types, as it is in the host app.
+    declare: false,
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
 })

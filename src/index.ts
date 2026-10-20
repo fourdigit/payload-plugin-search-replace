@@ -2,13 +2,43 @@ import type { CollectionAfterChangeHook, Config } from 'payload'
 
 import type { SanitizedSearchPluginConfig, SearchPluginConfig } from './types.js'
 
+import { createSearchReplaceEndpoints } from './endpoints/searchReplace.js'
 import { deleteFromSearch } from './Search/hooks/deleteFromSearch.js'
 import { syncWithSearch } from './Search/hooks/syncWithSearch.js'
 import { generateSearchCollection } from './Search/index.js'
+import { translations } from './translations.js'
+import { withAdminView } from './ui/withAdminView.js'
 
 type CollectionAfterChangeHookArgs = Parameters<CollectionAfterChangeHook>[0]
 
-export const searchPlugin =
+type Translations = NonNullable<NonNullable<Config['i18n']>['translations']>
+
+type Strings = Record<string, Record<string, string>>
+
+/**
+ * Adds the plugin's strings for every supported language: its own for en/ja, English for the
+ * rest. The host's translations win, so it can override or translate the plugin's namespace.
+ */
+const mergeTranslations = (config: Config, own: Record<string, Strings>): Translations => {
+  const existing = (config.i18n?.translations ?? {}) as Record<string, Strings | undefined>
+  const languages = new Set([
+    ...Object.keys(config.i18n?.supportedLanguages ?? {}),
+    ...Object.keys(existing),
+    ...Object.keys(own),
+  ])
+  const merged: Record<string, Strings> = {}
+  for (const language of languages) {
+    const ours = own[language] ?? own.en
+    const theirs = existing[language] ?? {}
+    merged[language] = { ...ours, ...theirs }
+    for (const namespace of Object.keys(ours)) {
+      merged[language][namespace] = { ...ours[namespace], ...theirs[namespace] }
+    }
+  }
+  return merged as Translations
+}
+
+export const searchReplacePlugin =
   <ConfigTypes = unknown>(incomingPluginConfig: SearchPluginConfig<ConfigTypes>) =>
   (config: Config): Config => {
     const { collections } = config
@@ -30,10 +60,11 @@ export const searchPlugin =
 
       const pluginConfig: SanitizedSearchPluginConfig<ConfigTypes> = {
         // write any config defaults here
-        deleteDrafts: true,
+        deleteDrafts: false,
         labels,
+        localizeContent: Boolean(config.localization),
         reindexBatchSize: incomingPluginConfig?.reindexBatchSize || 50,
-        syncDrafts: false,
+        syncDrafts: true,
         ...incomingPluginConfig,
       }
 
@@ -71,14 +102,32 @@ export const searchPlugin =
         })
         .filter(Boolean)
 
-      return {
+      const nextConfig: Config = {
         ...config,
         collections: [
           ...(collectionsWithSearchHooks || []),
           generateSearchCollection(pluginConfig),
         ],
+        endpoints: [...(config.endpoints || []), ...createSearchReplaceEndpoints(pluginConfig)],
+        i18n: {
+          ...config.i18n,
+          translations: mergeTranslations(config, translations),
+        },
       }
+
+      return pluginConfig.replace?.disableAdminView ? nextConfig : withAdminView(nextConfig, pluginConfig)
     }
 
     return config
   }
+
+export type {
+  ApplyRequest,
+  ApplyResponse,
+  ApplyResult,
+  CapabilitiesResponse,
+  PreviewDocument,
+  PreviewResponse,
+  SearchReplaceQuery,
+} from './endpoints/searchReplace.js'
+export type { FieldFilter, ReplaceConfig, SearchPluginConfig } from './types.js'

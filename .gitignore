@@ -51,3 +51,6 @@ next-env.d.ts
 
 # dev SQLite database
 /dev/dev.db*
+
+# local tooling
+/.claude/

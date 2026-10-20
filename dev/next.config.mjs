@@ -15,7 +15,8 @@ const nextConfig = {
 
     return webpackConfig
   },
-  serverExternalPackages: ['mongodb-memory-server'],
+  // Do not write AGENTS.md / CLAUDE.md into the dev app.
+  agentRules: false,
 }
 
 export default withPayload(nextConfig, { devBundleServerPackages: false })

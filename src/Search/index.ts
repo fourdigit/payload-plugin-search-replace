@@ -22,6 +22,29 @@ export const generateSearchCollection = (
       },
       localized: pluginConfig.localize,
     },
+    ...(
+      [
+        ['content', 'normalized with NFKC and case-folded'],
+        ['contentRaw', 'case-folded'],
+      ] as const
+    ).map(
+      ([name, form]): Field => ({
+        name,
+        type: 'textarea',
+        access: {
+          // Holds draft text of every indexed document; never expose it through the API,
+          // even when the host opens up `read` on the collection for site search.
+          read: () => false,
+        },
+        admin: {
+          description: `Text of the indexed fields, ${form}. Used to find candidates for search & replace.`,
+          hidden: true,
+        },
+        localized: pluginConfig.localizeContent,
+        // The default 40,000 character limit would make long documents fail to index.
+        maxLength: Number.MAX_SAFE_INTEGER,
+      }),
+    ),
     {
       name: 'priority',
       type: 'number',
@@ -63,8 +86,13 @@ export const generateSearchCollection = (
     ...(pluginConfig?.searchOverrides || {}),
     slug: searchSlug,
     access: {
+      // The index lists documents across tenants and departments, including drafts, so nobody
+      // reads or changes it through the API unless the host opts in (upstream: public read).
+      // Syncing and search & replace use the Local API with access overridden.
       create: (): boolean => false,
-      read: (): boolean => true,
+      delete: (): boolean => false,
+      read: (): boolean => false,
+      update: (): boolean => false,
       ...(pluginConfig?.searchOverrides?.access || {}),
     },
     admin: {
