@@ -393,7 +393,12 @@ export const SearchReplaceClient: React.FC<SearchReplaceClientProps> = ({
                           onChange={() => toggleMatch(doc, match.id)}
                           type="checkbox"
                         />
-                        <code className={`${baseClass}__path`}>{match.fieldPath}</code>
+                        <span className={`${baseClass}__field-name`} title={match.fieldPath}>
+                          {match.fieldLabel ?? match.fieldPath}
+                          {match.fieldLabel && match.fieldPath.includes('.') && (
+                            <code className={`${baseClass}__path`}>{match.fieldPath}</code>
+                          )}
+                        </span>
                         <span className={`${baseClass}__snippet`}>
                           {match.before}
                           <del>{match.text}</del>

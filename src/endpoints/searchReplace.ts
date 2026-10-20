@@ -1,7 +1,9 @@
-import type { Endpoint, PayloadRequest, TypedFallbackLocale, TypedLocale, Where } from 'payload'
+import type { Endpoint, Field, PayloadRequest, TypedFallbackLocale, TypedLocale, Where } from 'payload'
 
+import { getTranslation } from '@payloadcms/translations'
 import { headersWithCors } from 'payload'
 
+import type { TranslationKey } from '../translations.js'
 import type { SanitizedSearchPluginConfig } from '../types.js'
 
 import {
@@ -18,6 +20,7 @@ import {
 } from '../core/matcher.js'
 import { getAtPath } from '../core/textFields.js'
 import { defaultReplaceAccess } from '../defaultAccess.js'
+import { pluginT } from '../translations.js'
 
 export const ENDPOINT_BASE = '/search-replace'
 
@@ -85,6 +88,19 @@ class HttpError extends Error {
   ) {
     super(message)
   }
+}
+
+/** A plugin string in the request language (the host can override them in `i18n.translations`). */
+const tr = (req: PayloadRequest, key: TranslationKey, vars?: Record<string, unknown>): string =>
+  pluginT(req.t, key, vars)
+
+/** The field's label in the request language, or its name. */
+const fieldLabelOf = (req: PayloadRequest, field: Field): string | undefined => {
+  const label = 'label' in field ? field.label : undefined
+  if (label && typeof label !== 'function') {
+    return getTranslation(label, req.i18n)
+  }
+  return 'name' in field ? field.name : undefined
 }
 
 const json = (req: PayloadRequest, body: unknown, status = 200) =>
@@ -185,7 +201,7 @@ const resolveQuery = async (
   query: SearchReplaceQuery,
 ): Promise<ResolvedQuery> => {
   if (query.mode === 'regex' && !(await canUseRegex(req, pluginConfig))) {
-    throw new HttpError('You are not allowed to search with regular expressions.', 403)
+    throw new HttpError(tr(req, 'regexNotAllowed'), 403)
   }
 
   const allowed = pluginConfig.collections ?? []
@@ -193,7 +209,7 @@ const resolveQuery = async (
     ? query.collections.filter((slug) => allowed.includes(slug))
     : allowed
   if (!collections.length) {
-    throw new HttpError('No searchable collections were selected.', 400)
+    throw new HttpError(tr(req, 'noCollectionsSelected'), 400)
   }
 
   const localization = req.payload.config.localization
@@ -219,7 +235,7 @@ const resolveQuery = async (
     return { collections, locale, matcher, query }
   } catch (err) {
     if (err instanceof InvalidPatternError) {
-      throw new HttpError(err.message, 400)
+      throw new HttpError(tr(req, err.key, err.data), 400)
     }
     throw err
   }
@@ -403,6 +419,7 @@ export const createSearchReplaceEndpoints = (pluginConfig: SanitizedSearchPlugin
                 collection,
                 doc,
                 filter: pluginConfig.fields,
+                labelOf: (field) => fieldLabelOf(req, field),
                 matcher: resolved.matcher,
                 payload: req.payload,
               })
@@ -460,10 +477,7 @@ export const createSearchReplaceEndpoints = (pluginConfig: SanitizedSearchPlugin
         )
         const { maxApplyDocs } = pluginConfig.replace ?? {}
         if (maxApplyDocs !== undefined && targets.length > maxApplyDocs) {
-          throw new HttpError(
-            `Too many documents: ${targets.length}. The limit is ${maxApplyDocs} per request.`,
-            400,
-          )
+          throw new HttpError(tr(req, 'maxApplyDocs', { max: maxApplyDocs }), 400)
         }
 
         const results: ApplyResult[] = []
@@ -487,7 +501,7 @@ export const createSearchReplaceEndpoints = (pluginConfig: SanitizedSearchPlugin
               results.push({
                 ...base,
                 appliedIds: [],
-                message: 'The document changed after the preview. Run the search again.',
+                message: tr(req, 'staleDocument'),
                 skippedIds: target.matchIds,
                 status: 'stale',
               })

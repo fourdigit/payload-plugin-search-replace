@@ -72,7 +72,7 @@ Press **Search**. Nothing is saved yet.
 
 ![Preview of every match](./docs/images/02-preview.png)
 
-Each document is listed with every match, its field path, and the text before and after the change. Untick a match, or a whole document, to leave it out. **Edit** opens the document.
+Each document is listed with every match, the field it is in (its label, plus the path for fields inside groups and arrays), and the text before and after the change. Untick a match, or a whole document, to leave it out. **Edit** opens the document.
 
 A match that crosses formatting or a link in rich text (here, `さくら` + **`ポイント`** in bold) is shown but can't be ticked: replacing it would lose the formatting, so it says *fix by hand*.
 
@@ -163,7 +163,7 @@ The admin view uses these; you can call them yourself.
 | Endpoint | Body | Returns |
 |---|---|---|
 | `GET /api/search-replace/capabilities` | — | `{ canUseRegex, collections, maxApplyDocs }` |
-| `POST /api/search-replace/preview` | `{ find, replace?, mode?: 'text' \| 'regex', caseSensitive?, normalizeWidth?, locale?, collections? }` | `{ documents: [{ collection, id, title, updatedAt, matches: [{ id, fieldPath, before, text, after, replacement, replaceable, reason? }] }], totals }` |
+| `POST /api/search-replace/preview` | `{ find, replace?, mode?: 'text' \| 'regex', caseSensitive?, normalizeWidth?, locale?, collections? }` | `{ documents: [{ collection, id, title, updatedAt, matches: [{ id, fieldLabel?, fieldPath, before, text, after, replacement, replaceable, reason? }] }], totals }` |
 | `POST /api/search-replace/apply` | the preview query plus `documents: [{ collection, id, matchIds, updatedAt? }]` | `{ results: [{ collection, id, status, appliedIds, skippedIds, message? }] }` |
 
 `status` is `updated`, `unchanged`, `stale` (the document changed after the preview; nothing was written) or `error`. Match ids that were not replaced — changed since the preview, needing a manual fix, or kept by field-level update access — are listed in `skippedIds`.

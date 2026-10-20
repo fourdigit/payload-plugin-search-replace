@@ -1,4 +1,4 @@
-import type { Payload } from 'payload'
+import type { Field, Payload } from 'payload'
 
 import type { FieldFilter } from '../types.js'
 import type { Matcher, TextMatch } from './matcher.js'
@@ -19,6 +19,8 @@ const CONTEXT_LENGTH = 40
 export type DocumentMatch = {
   after: string
   before: string
+  /** The field's label in the request language, when the caller resolves it. */
+  fieldLabel?: string
   /** Concrete path, e.g. `layout.0.content`. */
   fieldPath: string
   /** Stable within one version of the document: field path, node path and offsets. */
@@ -139,8 +141,14 @@ const locateMatches = ({
   return located
 }
 
-export const findDocumentMatches = (args: Parameters<typeof locateMatches>[0]): DocumentMatch[] =>
-  locateMatches(args).map((match) => match.public)
+export const findDocumentMatches = ({
+  labelOf,
+  ...args
+}: { labelOf?: (field: Field) => string | undefined } & Parameters<typeof locateMatches>[0]): DocumentMatch[] =>
+  locateMatches(args).map((match) => {
+    const fieldLabel = labelOf?.(match.entry.field)
+    return fieldLabel ? { ...match.public, fieldLabel } : match.public
+  })
 
 /** The new value planned for one field and the matches it contains. */
 export type PlannedChange = {
