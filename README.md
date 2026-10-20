@@ -107,14 +107,33 @@ All options of `@payloadcms/plugin-search` are accepted. Defaults that differ fr
 | Option | Type | Default | |
 |---|---|---|---|
 | `collections` | `string[]` | — | Collections to index and search |
-| `fields.exclude` | `string[]` | `['**.slug', '**.url']` | Glob patterns on the field path (names only, no array indices, e.g. `layout.content`). `*` matches one segment, `**` any number |
-| `fields.include` | `({ collection, field, schemaPath }) => boolean \| undefined` | — | Decide per field. `undefined` falls back to `exclude` |
+| `fields.exclude` | `string[]` | `DEFAULT_EXCLUDE` (below) | Glob patterns on the field path (names only, no array indices, e.g. `layout.content`). `*` matches one segment, `**` any number. Replaces the defaults; spread `DEFAULT_EXCLUDE` to keep them |
+| `fields.include` | `({ collection, field, schemaPath }) => boolean \| undefined` | — | Decide per field; `true` also brings back a hidden field. `undefined` falls back to the rules below |
 | `replace.access` | `({ req }) => boolean \| Promise<boolean>` | users who can open the admin panel | Who can open the view and call the endpoints. Document access still applies |
 | `replace.canUseRegex` | `({ req }) => boolean \| Promise<boolean>` | nobody | Who can search with regular expressions |
 | `replace.maxApplyDocs` | `number` | no limit | Most documents one apply request may change |
 | `replace.disableAdminView` | `boolean` | `false` | Leave out the admin view and nav link; the endpoints stay |
 | `syncDrafts` | `boolean` | **`true`** (upstream `false`) | The index has to hold draft text, since replacements work on drafts |
 | `deleteDrafts` | `boolean` | **`false`** (upstream `true`) | |
+
+### Fields left out by default
+
+- **Fields hidden from the admin panel** (`hidden`, `admin.hidden` or `admin.disabled`, or inside such a field): editors can't see what a replacement would do to them. This covers Payload's upload fields (`filename`, `mimeType`, `sizes`…) and storage plugins' `prefix`.
+- **`DEFAULT_EXCLUDE`**:
+  - `**.slug`, `**.url`
+  - `breadcrumbs.**` — added by `@payloadcms/plugin-nested-docs` and rebuilt from the parent pages on every save
+  - `stripeID` — added by `@payloadcms/plugin-stripe`; the id of the synced Stripe object
+
+To add your own patterns and keep these:
+
+```ts
+import { DEFAULT_EXCLUDE, searchReplacePlugin } from '@fourdigit/payload-plugin-search-replace'
+
+searchReplacePlugin({
+  collections: ['pages'],
+  fields: { exclude: [...DEFAULT_EXCLUDE, 'legacyId', 'internal.**'] },
+})
+```
 
 ## Access to the index
 

@@ -23,6 +23,8 @@ type WalkArgs = {
   data: unknown
   fields: Field[]
   filter: FieldFilter | undefined
+  /** An enclosing field is hidden from the admin panel, so everything inside it is too. */
+  hidden?: boolean
   out: TextEntry[]
   path: (number | string)[]
   payload: Payload
@@ -59,17 +61,44 @@ export const matchesPathGlob = (pattern: string, schemaPath: string): boolean =>
   return match(0, 0)
 }
 
-export const DEFAULT_EXCLUDE = ['**.slug', '**.url']
+/**
+ * Fields left out unless the host passes its own `exclude`. Besides slugs and URLs, these are
+ * fields that official Payload plugins add to the host's collections and fill in themselves:
+ * replacing their text changes nothing, or breaks the link to another system.
+ */
+export const DEFAULT_EXCLUDE = [
+  '**.slug',
+  '**.url',
+  // @payloadcms/plugin-nested-docs: rebuilt from the parent chain on every save.
+  'breadcrumbs.**',
+  // @payloadcms/plugin-stripe: the id of the synced Stripe object.
+  'stripeID',
+]
+
+/**
+ * Hidden from the admin panel (`hidden`, `admin.hidden` or `admin.disabled`): editors can't see the
+ * value or what a replacement did to it. Covers Payload's own upload fields (`filename`,
+ * `mimeType`, `sizes`…) and those of the storage plugins (`prefix`).
+ */
+const isHiddenField = (field: Field): boolean => {
+  if ('hidden' in field && field.hidden === true) {
+    return true
+  }
+  const admin = (field as { admin?: { disabled?: boolean; hidden?: boolean } }).admin
+  return admin?.hidden === true || admin?.disabled === true
+}
 
 const isIncluded = ({
   collection,
   field,
   filter,
+  hidden,
   schemaPath,
 }: {
   collection: string
   field: Field
   filter: FieldFilter | undefined
+  hidden: boolean
   schemaPath: string
 }): boolean => {
   if (typeof filter?.include === 'function') {
@@ -77,6 +106,9 @@ const isIncluded = ({
     if (typeof result === 'boolean') {
       return result
     }
+  }
+  if (hidden) {
+    return false
   }
   const exclude = filter?.exclude ?? DEFAULT_EXCLUDE
   return !exclude.some((pattern) => matchesPathGlob(pattern, schemaPath))
@@ -102,10 +134,11 @@ const walkFields = (args: WalkArgs): void => {
     if (fieldIsVirtual(field)) {
       continue
     }
+    const hidden = Boolean(args.hidden) || isHiddenField(field)
 
     // Layout-only fields: their children live on the same data object.
     if (field.type === 'row' || field.type === 'collapsible') {
-      walkFields({ ...args, fields: field.fields })
+      walkFields({ ...args, fields: field.fields, hidden })
       continue
     }
 
@@ -116,11 +149,12 @@ const walkFields = (args: WalkArgs): void => {
             ...args,
             data: data[tab.name],
             fields: tab.fields,
+            hidden,
             path: [...path, tab.name],
             schemaPath: [...schemaPath, tab.name],
           })
         } else {
-          walkFields({ ...args, fields: tab.fields })
+          walkFields({ ...args, fields: tab.fields, hidden })
         }
       }
       continue
@@ -132,11 +166,12 @@ const walkFields = (args: WalkArgs): void => {
           ...args,
           data: data[field.name],
           fields: field.fields,
+          hidden,
           path: [...path, field.name],
           schemaPath: [...schemaPath, field.name],
         })
       } else {
-        walkFields({ ...args, fields: field.fields })
+        walkFields({ ...args, fields: field.fields, hidden })
       }
       continue
     }
@@ -155,6 +190,7 @@ const walkFields = (args: WalkArgs): void => {
           ...args,
           data: row,
           fields: field.fields,
+          hidden,
           path: [...fieldPath, index],
           schemaPath: fieldSchemaPath,
         })
@@ -172,6 +208,7 @@ const walkFields = (args: WalkArgs): void => {
             ...args,
             data: row,
             fields: block.fields,
+            hidden,
             path: [...fieldPath, index],
             schemaPath: fieldSchemaPath,
           })
@@ -185,7 +222,7 @@ const walkFields = (args: WalkArgs): void => {
     }
 
     const joinedSchemaPath = fieldSchemaPath.join('.')
-    if (!isIncluded({ collection, field, filter, schemaPath: joinedSchemaPath })) {
+    if (!isIncluded({ collection, field, filter, hidden, schemaPath: joinedSchemaPath })) {
       continue
     }
 
