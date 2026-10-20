@@ -104,11 +104,13 @@ export type SearchPluginConfig<ConfigTypes = unknown> = {
 export type FieldFilter = {
   /**
    * Glob patterns on `schemaPath` to leave out. `*` matches one segment, `**` any number.
+   * Replaces the defaults; spread `DEFAULT_EXCLUDE` to keep them. Fields hidden from the admin
+   * panel are left out either way unless `include` returns `true` for them.
    *
-   * @default ['**.slug', '**.url']
+   * @default DEFAULT_EXCLUDE — slugs, URLs, nested-docs `breadcrumbs`, stripe `stripeID`
    */
   exclude?: string[]
-  /** Decides per field. Returning `undefined` falls back to `exclude`. */
+  /** Decides per field, hidden fields included. Returning `undefined` falls back to the defaults and `exclude`. */
   include?: (args: { collection: string; field: Field; schemaPath: string }) => boolean | undefined
 }
 

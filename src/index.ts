@@ -121,6 +121,8 @@ export const searchReplacePlugin =
     return config
   }
 
+/** The default `fields.exclude`; spread it to add patterns without losing the defaults. */
+export { DEFAULT_EXCLUDE } from './core/textFields.js'
 export type {
   ApplyRequest,
   ApplyResponse,

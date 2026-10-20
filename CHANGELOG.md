@@ -7,7 +7,7 @@ First release, forked from `@payloadcms/plugin-search` 3.90.0.
 ### Changes from `@payloadcms/plugin-search`
 
 - The `search` collection indexes the text of every `text`, `textarea`, `hasMany` text and Lexical `richText` field (in groups, tabs, arrays and blocks) as `content` (NFKC, case-folded) and `contentRaw` (case-folded)
-- New `fields.include` / `fields.exclude` options choose the indexed fields
+- New `fields.include` / `fields.exclude` options choose the indexed fields. By default, fields hidden from the admin panel and the fields in the exported `DEFAULT_EXCLUDE` (slugs, URLs, nested-docs `breadcrumbs`, stripe `stripeID`) are left out
 - Defaults: `syncDrafts: true`, `deleteDrafts: false`
 - The `search` collection is not readable, updatable or deletable through the API by default, and its text fields never are readable
 - Every locale is synced when a document changes, since non-localized fields are indexed too
