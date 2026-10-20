@@ -152,6 +152,24 @@ describe('preview', () => {
     expect(ja.body.documents.some((doc) => doc.id === post.id)).toBe(true)
   })
 
+  test('indexes each locale without fallback text', async () => {
+    const post = await createPost({ title: '日本語だけの索引' })
+
+    const indexed = async (locale: 'en' | 'ja') => {
+      const { docs } = await payload.find({
+        collection: 'search',
+        fallbackLocale: false as never,
+        locale,
+        overrideAccess: true,
+        where: { 'doc.value': { equals: post.id } },
+      })
+      return (docs[0] as { contentRaw?: string } | undefined)?.contentRaw ?? ''
+    }
+
+    expect(await indexed('ja')).toContain('日本語だけの索引')
+    expect(await indexed('en')).not.toContain('日本語だけの索引')
+  })
+
   test('rejects anonymous requests', async () => {
     const { status } = await callEndpoint('/search-replace/preview', { find: 'x' }, { anonymous: true })
     expect(status).toBe(401)

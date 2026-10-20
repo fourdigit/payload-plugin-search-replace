@@ -1,3 +1,5 @@
+import type { TypedFallbackLocale } from 'payload'
+
 import type { DocToSync, SyncDocArgs } from '../types.js'
 
 import { buildSearchContent } from '../core/searchContent.js'
@@ -89,6 +91,9 @@ export const syncDocAsSearchIndex = async ({
         collection,
         depth: 0,
         draft: draftsEnabled && syncDrafts,
+        // Without this, a locale with no text of its own is indexed with the fallback locale's
+        // text, so searches in that locale return documents the preview then has to drop.
+        fallbackLocale: false as unknown as TypedFallbackLocale,
         locale: syncLocale,
         req,
         // Include trashed documents when the document being synced is trashed
