@@ -120,9 +120,16 @@
   gap: calc(var(--base) * 0.15);
 }
 
+.search-replace__field-name {
+  color: var(--theme-elevation-600);
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
 .search-replace__path {
   color: var(--theme-elevation-500);
-  font-size: 0.8em;
+  font-size: 0.9em;
+  margin-left: 0.4em;
   white-space: nowrap;
 }
 

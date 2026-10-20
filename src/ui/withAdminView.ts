@@ -3,7 +3,26 @@ import type { Config } from 'payload'
 import type { SanitizedSearchPluginConfig } from '../types.js'
 import type { SearchReplaceViewServerProps } from './SearchReplaceView/types.js'
 
+import { translations } from '../translations.js'
+
 export const ADMIN_VIEW_PATH = '/search-replace'
+
+/**
+ * The browser tab title, in the admin's fallback language: Payload takes a fixed string here,
+ * not one per request language.
+ */
+const viewTitle = (config: Config): string => {
+  const language = config.i18n?.fallbackLanguage ?? 'en'
+  const all = (config.i18n?.translations ?? {}) as Record<
+    string,
+    { 'plugin-search-replace'?: { title?: string } } | undefined
+  >
+  return (
+    all[language]?.['plugin-search-replace']?.title ??
+    translations[language as keyof typeof translations]?.['plugin-search-replace'].title ??
+    translations.en['plugin-search-replace'].title
+  )
+}
 
 /** Registers the search & replace view and its nav link. */
 export const withAdminView = (config: Config, pluginConfig: SanitizedSearchPluginConfig): Config => {
@@ -34,7 +53,7 @@ export const withAdminView = (config: Config, pluginConfig: SanitizedSearchPlugi
               serverProps,
             },
             meta: {
-              title: 'Search & Replace',
+              title: viewTitle(config),
             },
             path: ADMIN_VIEW_PATH,
           },

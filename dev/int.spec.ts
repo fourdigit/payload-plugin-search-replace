@@ -2,7 +2,7 @@ import type { ApplyResponse, PreviewResponse } from '@fourdigit/payload-plugin-s
 import type { Payload, PayloadRequest, TypedUser } from 'payload'
 
 import config from '@payload-config'
-import { createLocalReq, getPayload } from 'payload'
+import { createLocalReq, getLocalI18n, getPayload } from 'payload'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 
 import { devUser, otherUser } from './helpers/credentials.js'
@@ -23,13 +23,14 @@ const richText = (...paragraphs: object[][]) => ({
 const callEndpoint = async <T>(
   path: string,
   body?: unknown,
-  { anonymous = false, as }: { anonymous?: boolean; as?: TypedUser } = {},
+  { anonymous = false, as, language }: { anonymous?: boolean; as?: TypedUser; language?: 'en' | 'ja' } = {},
 ): Promise<{ body: T; status: number }> => {
   const endpoint = payload.config.endpoints.find((candidate) => candidate.path === path)
   if (!endpoint) {
     throw new Error(`No endpoint ${path}`)
   }
-  const req = (await createLocalReq({ user: anonymous ? undefined : (as ?? user) }, payload))
+  const i18n = language ? await getLocalI18n({ config: payload.config, language }) : undefined
+  const req = await createLocalReq({ req: i18n ? { i18n } : undefined, user: anonymous ? undefined : (as ?? user) }, payload)
   req.json = () => Promise.resolve(body)
   const response = await endpoint.handler(req)
   return { body: (await response.json()) as T, status: response.status }
@@ -456,5 +457,53 @@ describe('collections without drafts and access control', () => {
   test('rejects a malformed apply body', async () => {
     const { status } = await apply({ documents: 'nope', find: 'x' })
     expect(status).toBe(400)
+  })
+})
+
+describe('admin language', () => {
+  test('messages follow the request language', async () => {
+    const regex = await callEndpoint<{ message: string }>(
+      '/search-replace/preview',
+      { find: 'a+', mode: 'regex' },
+      { as: other, language: 'ja' },
+    )
+    expect(regex).toMatchObject({ body: { message: '正規表現で検索する権限がありません。' }, status: 403 })
+
+    const invalid = await callEndpoint<{ message: string }>(
+      '/search-replace/preview',
+      { find: '(a', mode: 'regex' },
+      { language: 'ja' },
+    )
+    expect(invalid.status).toBe(400)
+    expect(invalid.body.message).toMatch(/^正規表現が正しくありません: /)
+
+    const post = await createPost({ title: '言語の確認' })
+    const found = await preview({ find: '言語の確認' })
+    const doc = findDoc(found, post.id)!
+    await payload.update({ id: post.id, collection: 'posts', data: { title: '言語の確認（更新）' }, locale: 'ja' })
+    const stale = await callEndpoint<ApplyResponse>(
+      '/search-replace/apply',
+      {
+        documents: [{ id: post.id, collection: 'posts', matchIds: doc.matches.map((m) => m.id), updatedAt: doc.updatedAt }],
+        find: '言語の確認',
+        mode: 'text',
+        replace: 'X',
+      },
+      { language: 'ja' },
+    )
+    expect(stale.body.results[0]).toMatchObject({
+      message: '検索後にドキュメントが変更されました。もう一度検索してください。',
+      status: 'stale',
+    })
+  })
+
+  test('matches carry the field label in the request language', async () => {
+    const post = await createPost({ title: 'ラベルの確認' })
+    const found = await callEndpoint<PreviewResponse>(
+      '/search-replace/preview',
+      { find: 'ラベルの確認', mode: 'text' },
+      { language: 'en' },
+    )
+    expect(findDoc(found, post.id)?.matches[0]).toMatchObject({ fieldLabel: 'Title', fieldPath: 'title' })
   })
 })

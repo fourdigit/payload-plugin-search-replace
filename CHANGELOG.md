@@ -16,5 +16,6 @@ First release, forked from `@payloadcms/plugin-search` 3.90.0.
 ### Added
 
 - `POST /api/search-replace/preview`, `POST /api/search-replace/apply`, `GET /api/search-replace/capabilities`
-- Admin view at `/admin/search-replace` with a nav link (English, Japanese)
+- Admin view at `/admin/search-replace` with a nav link (English, Japanese). Preview rows show the field label; error and stale messages from the endpoints follow the request language
+- The `search` collection is labelled "Search index" with a description of what it is for (upstream: "Search Results" for the site search)
 - `replace.access`, `replace.canUseRegex`, `replace.maxApplyDocs`, `replace.disableAdminView` options

@@ -3,6 +3,7 @@ import type { CollectionConfig, Field } from 'payload'
 import type { SanitizedSearchPluginConfig } from '../types.js'
 import type { ReindexButtonServerProps } from './ui/ReindexButton/types.js'
 
+import { pluginT } from '../translations.js'
 import { generateReindexHandler } from '../utilities/generateReindexHandler.js'
 
 // all settings can be overridden by the config
@@ -113,8 +114,7 @@ export const generateSearchCollection = (
         },
       },
       defaultColumns: ['title'],
-      description:
-        'This is a collection of automatically created search results. These results are used by the global site search and will be updated automatically as documents in the CMS are created or updated.',
+      description: ({ t }) => pluginT(t, 'searchIndexDescription'),
       enableRichTextRelationship: false,
       useAsTitle: 'title',
       ...(pluginConfig?.searchOverrides?.admin || {}),
@@ -134,8 +134,8 @@ export const generateSearchCollection = (
         : defaultFields,
     labels: {
       ...(pluginConfig?.searchOverrides?.labels || {
-        plural: 'Search Results',
-        singular: 'Search Result',
+        plural: ({ t }) => pluginT(t, 'searchIndexPlural'),
+        singular: ({ t }) => pluginT(t, 'searchIndexSingular'),
       }),
     },
   }

@@ -29,7 +29,12 @@ export type TextMatch = {
 }
 
 export class InvalidPatternError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    /** Translation key for the admin, with `data` as its variables. */
+    public readonly key: 'patternEmpty' | 'patternInvalid' | 'patternTooLong',
+    public readonly data: Record<string, unknown> = {},
+  ) {
     super(message)
     this.name = 'InvalidPatternError'
   }
@@ -182,10 +187,14 @@ export const createMatcher = ({
   replace: string
 }): Matcher => {
   if (!find) {
-    throw new InvalidPatternError('The search text is empty.')
+    throw new InvalidPatternError('The search text is empty.', 'patternEmpty')
   }
   if (find.length > MAX_PATTERN_LENGTH) {
-    throw new InvalidPatternError(`The search text is longer than ${MAX_PATTERN_LENGTH} characters.`)
+    throw new InvalidPatternError(
+      `The search text is longer than ${MAX_PATTERN_LENGTH} characters.`,
+      'patternTooLong',
+      { max: MAX_PATTERN_LENGTH },
+    )
   }
 
   const flags = options.caseSensitive ? 0 : RE2JS.CASE_INSENSITIVE
@@ -196,7 +205,8 @@ export const createMatcher = ({
         ? RE2JS.compile(find, flags)
         : RE2JS.compile(RE2JS.quote(options.normalizeWidth ? find.normalize('NFKC') : find), flags)
   } catch (err) {
-    throw new InvalidPatternError(err instanceof Error ? err.message : String(err))
+    const message = err instanceof Error ? err.message : String(err)
+    throw new InvalidPatternError(message, 'patternInvalid', { error: message })
   }
   const names = pattern.namedGroups()
 
