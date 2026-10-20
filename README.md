@@ -185,9 +185,11 @@ pnpm install
 pnpm dev            # dev app on http://localhost:3000 (dev@payloadcms.com / test)
 pnpm test:int       # unit and integration tests (in-memory SQLite)
 pnpm lint
+pnpm typecheck
+pnpm build && pnpm check:pack   # packs the package and checks what would be published
 ```
 
-`DATABASE_URL` in `dev/.env` picks the adapter: `postgres://…`, `mongodb://…`, or unset for SQLite.
+`DATABASE_URL` in `dev/.env` picks the adapter: `postgres://…`, `mongodb://…`, or unset for SQLite. CI (`.github/workflows/ci.yml`) runs lint, types, the tests on SQLite and PostgreSQL 16, and the pack check on every pull request.
 
 ## License
 
