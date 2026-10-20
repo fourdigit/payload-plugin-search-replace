@@ -1,8 +1,28 @@
 {
-  "name": "payload-plugin-search-replace",
-  "version": "1.0.0",
-  "description": "A blank template to get started with Payload 3.0",
+  "name": "@fourdigit/payload-plugin-search-replace",
+  "version": "0.1.0",
+  "description": "Find and replace text across Payload CMS collections, including Lexical rich text. Forked from @payloadcms/plugin-search.",
+  "keywords": [
+    "payload",
+    "payload-plugin",
+    "cms",
+    "plugin",
+    "search",
+    "replace",
+    "find-and-replace",
+    "lexical"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fourdigit/payload-plugin-search-replace.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fourdigit/payload-plugin-search-replace/issues"
+  },
+  "homepage": "https://github.com/fourdigit/payload-plugin-search-replace#readme",
   "license": "MIT",
+  "author": "FOURDIGIT Inc.",
+  "sideEffects": false,
   "type": "module",
   "exports": {
     ".": {
@@ -15,10 +35,10 @@
       "types": "./src/exports/client.ts",
       "default": "./src/exports/client.ts"
     },
-    "./rsc": {
-      "import": "./src/exports/rsc.ts",
-      "types": "./src/exports/rsc.ts",
-      "default": "./src/exports/rsc.ts"
+    "./types": {
+      "import": "./src/exports/types.ts",
+      "types": "./src/exports/types.ts",
+      "default": "./src/exports/types.ts"
     }
   },
   "main": "./src/index.ts",
@@ -44,15 +64,19 @@
     "test:e2e": "playwright test",
     "test:int": "vitest"
   },
+  "dependencies": {
+    "@payloadcms/next": "^3.86.0",
+    "@payloadcms/ui": "^3.86.0"
+  },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
-    "@payloadcms/db-mongodb": "3.90.0",
-    "@payloadcms/db-postgres": "3.90.0",
-    "@payloadcms/db-sqlite": "3.90.0",
+    "@payloadcms/db-mongodb": "3.91.0",
+    "@payloadcms/db-postgres": "3.91.0",
+    "@payloadcms/db-sqlite": "3.91.0",
     "@payloadcms/eslint-config": "3.28.0",
-    "@payloadcms/next": "3.90.0",
-    "@payloadcms/richtext-lexical": "3.90.0",
-    "@payloadcms/ui": "3.90.0",
+    "@payloadcms/next": "3.91.0",
+    "@payloadcms/richtext-lexical": "3.91.0",
+    "@payloadcms/ui": "3.91.0",
     "@playwright/test": "1.58.2",
     "@swc-node/register": "1.10.9",
     "@swc/cli": "0.6.0",
@@ -64,10 +88,9 @@
     "eslint": "^9.23.0",
     "eslint-config-next": "16.3.3",
     "graphql": "^16.8.1",
-    "mongodb-memory-server": "10.1.4",
     "next": "16.3.3",
     "open": "^10.1.0",
-    "payload": "3.90.0",
+    "payload": "3.91.0",
     "prettier": "^3.4.2",
     "qs-esm": "8.0.1",
     "react": "19.2.6",
@@ -80,7 +103,9 @@
     "vitest": "4.0.18"
   },
   "peerDependencies": {
-    "payload": "^3.90.0"
+    "payload": "^3.86.0",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1"
   },
   "engines": {
     "node": ">=20.18.1",
@@ -98,22 +123,14 @@
         "types": "./dist/exports/client.d.ts",
         "default": "./dist/exports/client.js"
       },
-      "./rsc": {
-        "import": "./dist/exports/rsc.js",
-        "types": "./dist/exports/rsc.d.ts",
-        "default": "./dist/exports/rsc.js"
+      "./types": {
+        "import": "./dist/exports/types.js",
+        "types": "./dist/exports/types.d.ts",
+        "default": "./dist/exports/types.js"
       }
     },
     "main": "./dist/index.js",
-    "types": "./dist/index.d.ts"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "sharp",
-      "esbuild",
-      "unrs-resolver"
-    ]
-  },
-  "registry": "https://registry.npmjs.org/",
-  "dependencies": {}
+    "types": "./dist/index.d.ts",
+    "access": "public"
+  }
 }

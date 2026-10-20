@@ -1,111 +1,82 @@
-import type { CollectionSlug, Config } from 'payload'
+import type { CollectionAfterChangeHook, Config } from 'payload'
 
-import { customEndpointHandler } from './endpoints/customEndpointHandler.js'
+import type { SanitizedSearchPluginConfig, SearchPluginConfig } from './types.js'
 
-export type PayloadPluginSearchReplaceConfig = {
-  /**
-   * List of collections to add a custom field
-   */
-  collections?: Partial<Record<CollectionSlug, true>>
-  disabled?: boolean
-}
+import { deleteFromSearch } from './Search/hooks/deleteFromSearch.js'
+import { syncWithSearch } from './Search/hooks/syncWithSearch.js'
+import { generateSearchCollection } from './Search/index.js'
 
-export const payloadPluginSearchReplace =
-  (pluginOptions: PayloadPluginSearchReplaceConfig) =>
+type CollectionAfterChangeHookArgs = Parameters<CollectionAfterChangeHook>[0]
+
+export const searchPlugin =
+  <ConfigTypes = unknown>(incomingPluginConfig: SearchPluginConfig<ConfigTypes>) =>
   (config: Config): Config => {
-    if (!config.collections) {
-      config.collections = []
-    }
+    const { collections } = config
 
-    config.collections.push({
-      slug: 'plugin-collection',
-      fields: [
-        {
-          name: 'id',
-          type: 'text',
-        },
-      ],
-    })
+    // If the user defines `localize` to either true or false, use that
+    // Otherwise, set it based on if their config has localization enabled or disabled
+    const shouldLocalize =
+      typeof incomingPluginConfig.localize === 'boolean'
+        ? incomingPluginConfig.localize
+        : Boolean(config.localization)
+    incomingPluginConfig.localize = shouldLocalize
 
-    if (pluginOptions.collections) {
-      for (const collectionSlug in pluginOptions.collections) {
-        const collection = config.collections.find(
-          (collection) => collection.slug === collectionSlug,
-        )
+    if (collections) {
+      const labels = Object.fromEntries(
+        collections
+          .filter(({ slug }) => incomingPluginConfig.collections?.includes(slug))
+          .map((collection) => [collection.slug, collection.labels]),
+      )
 
-        if (collection) {
-          collection.fields.push({
-            name: 'addedByPlugin',
-            type: 'text',
-            admin: {
-              position: 'sidebar',
-            },
-          })
-        }
-      }
-    }
-
-    /**
-     * If the plugin is disabled, we still want to keep added collections/fields so the database schema is consistent which is important for migrations.
-     * If your plugin heavily modifies the database schema, you may want to remove this property.
-     */
-    if (pluginOptions.disabled) {
-      return config
-    }
-
-    if (!config.endpoints) {
-      config.endpoints = []
-    }
-
-    if (!config.admin) {
-      config.admin = {}
-    }
-
-    if (!config.admin.components) {
-      config.admin.components = {}
-    }
-
-    if (!config.admin.components.beforeDashboard) {
-      config.admin.components.beforeDashboard = []
-    }
-
-    config.admin.components.beforeDashboard.push(
-      `payload-plugin-search-replace/client#BeforeDashboardClient`,
-    )
-    config.admin.components.beforeDashboard.push(
-      `payload-plugin-search-replace/rsc#BeforeDashboardServer`,
-    )
-
-    config.endpoints.push({
-      handler: customEndpointHandler,
-      method: 'get',
-      path: '/my-plugin-endpoint',
-    })
-
-    const incomingOnInit = config.onInit
-
-    config.onInit = async (payload) => {
-      // Ensure we are executing any existing onInit functions before running our own.
-      if (incomingOnInit) {
-        await incomingOnInit(payload)
+      const pluginConfig: SanitizedSearchPluginConfig<ConfigTypes> = {
+        // write any config defaults here
+        deleteDrafts: true,
+        labels,
+        reindexBatchSize: incomingPluginConfig?.reindexBatchSize || 50,
+        syncDrafts: false,
+        ...incomingPluginConfig,
       }
 
-      const { totalDocs } = await payload.count({
-        collection: 'plugin-collection',
-        where: {
-          id: {
-            equals: 'seeded-by-plugin',
-          },
-        },
-      })
+      // add afterChange and afterDelete hooks to every search-enabled collection
+      const collectionsWithSearchHooks = config?.collections
+        ?.map((collection) => {
+          const { hooks: existingHooks } = collection
 
-      if (totalDocs === 0) {
-        await payload.create({
-          collection: 'plugin-collection',
-          data: {
-            id: 'seeded-by-plugin',
-          },
+          const enabledCollections = pluginConfig.collections || []
+          const isEnabled = enabledCollections.indexOf(collection.slug) > -1
+          if (isEnabled) {
+            return {
+              ...collection,
+              hooks: {
+                ...collection.hooks,
+                afterChange: [
+                  ...(existingHooks?.afterChange || []),
+                  async (args: CollectionAfterChangeHookArgs) => {
+                    await syncWithSearch({
+                      ...args,
+                      collection: collection.slug,
+                      pluginConfig,
+                    })
+                  },
+                ],
+                beforeDelete: [
+                  ...(existingHooks?.beforeDelete || []),
+                  deleteFromSearch(pluginConfig),
+                ],
+              },
+            }
+          }
+
+          return collection
         })
+        .filter(Boolean)
+
+      return {
+        ...config,
+        collections: [
+          ...(collectionsWithSearchHooks || []),
+          generateSearchCollection(pluginConfig),
+        ],
       }
     }
 

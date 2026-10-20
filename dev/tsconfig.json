@@ -19,14 +19,14 @@
       "@payload-config": [
         "./payload.config.ts"
       ],
-      "payload-plugin-search-replace": [
+      "@fourdigit/payload-plugin-search-replace": [
         "../src/index.ts"
       ],
-      "payload-plugin-search-replace/client": [
+      "@fourdigit/payload-plugin-search-replace/client": [
         "../src/exports/client.ts"
       ],
-      "payload-plugin-search-replace/rsc": [
-        "../src/exports/rsc.ts"
+      "@fourdigit/payload-plugin-search-replace/types": [
+        "../src/exports/types.ts"
       ]
     },
     "noEmit": true,
